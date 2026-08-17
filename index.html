@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>桌面解谜 - 快递追踪</title>
+<style>
+/* ========== CSS Variables ========== */
+:root {
+  --bg-desktop: linear-gradient(135deg, #e8ecf1 0%, #d5dce6 25%, #e8d5c4 60%, #e0d6c8 100%);
+  --surface: #ffffff;
+  --surface-muted: #f4f4f8;
+  --border: #dcdce8;
+  --text: #2c2c3a;
+  --text-muted: #6a6a7e;
+  --text-dim: #9a9ab0;
+  --brand: #7c5cff;
+  --brand-soft: #efe9ff;
+  --amber: #f6b73c;
+  --amber-deep: #e89c1e;
+  --blue: #8fb8f0;
+  --blue-deep: #5a8fd4;
+  --green: #7fc99a;
+  --teal: #5cc9b0;
+  --red: #ff6b6b;
+  --shadow: 0 8px 32px rgba(40,40,80,.12);
+  --shadow-lg: 0 16px 48px rgba(40,40,80,.18);
+  --radius: 8px;
+  --radius-card: 12px;
+  --radius-full: 999px;
+  --font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); overflow: hidden; height: 100vh; background: #1a1a2e; user-select: none; }
+
+/* ========== Lock Screen ========== */
+#lockscreen {
+  position: fixed; inset: 0; z-index: 5000;
+  background: linear-gradient(160deg, #3a3d6b 0%, #5c4a7a 40%, #8a5a7a 80%, #b87a7a 100%);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; color: #fff;
+  transition: opacity .5s ease, transform .5s ease;
+}
+#lockscreen.unlocked { opacity: 0; transform: scale(1.05); pointer-events: none; }
+.lock-time {
+  font-size: 72px; font-weight: 300; letter-spacing: 4px;
+  text-shadow: 0 4px 20px rgba(0,0,0,.2); margin-bottom: 6px;
+}
+.lock-date {
+  font-size: 16px; opacity: .75; margin-bottom: 40px;
+  letter-spacing: 2px;
+}
+.lock-avatar {
+  width: 96px; height: 96px; border-radius: 50%;
+  background: linear-gradient(135deg, #ffd89b, #ff9a9e);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 42px; margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  border: 3px solid rgba(255,255,255,.25);
+}
+.lock-username-text {
+  font-size: 20px; font-weight: 500; margin-bottom: 24px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.lock-form {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 280px;
+}
+.lock-input {
+  width: 100%; padding: 12px 18px;
+  background: rgba(255,255,255,.15); backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255,255,255,.25); border-radius: 999px;
+  color: #fff; font-size: 14px; font-family: var(--font);
+  outline: none; text-align: center;
+  transition: all .2s ease;
+}
+.lock-input::placeholder { color: rgba(255,255,255,.5); }
+.lock-input:focus {
+  background: rgba(255,255,255,.22);
+  border-color: rgba(255,255,255,.5);
+}
+.lock-btn {
+  padding: 10px 36px; border-radius: 999px;
+  background: rgba(255,255,255,.2); backdrop-filter: blur(10px);
+  border: 1.5px solid rgba(255,255,255,.3); color: #fff;
+  font-size: 14px; cursor: pointer; font-family: var(--font);
+  transition: all .2s ease; margin-top: 4px;
+}
+.lock-btn:hover {
+  background: rgba(255,255,255,.32);
+  transform: translateY(-1px);
+}
+.lock-btn:active { transform: translateY(0); }
+.lock-error {
+  font-size: 12px; color: #ffb8b8; min-height: 18px;
+  opacity: 0; transition: opacity .2s;
+}
+.lock-error.show { opacity: 1; }
+.lock-hint {
+  position: absolute; bottom: 30px; font-size: 12px;
+  color: rgba(255,255,255,.45); letter-spacing: 1px;
+}
+
+/* ========== Desktop ========== */
+#desktop {
+  width: 100vw; height: calc(100vh - 48px);
+  background: var(--bg-desktop);
+  position: relative; overflow: hidden;
+}
+#desktop-icons {
+  position: absolute; left: 16px; top: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 10;
+}
+
+/* ========== Desktop Icons ========== */
+.desk-icon {
+  display: flex; flex-direction: column; align-items: center;
+  width: 76px; padding: 10px 6px 8px;
+  border-radius: var(--radius-card);
+  cursor: pointer; transition: all .15s ease;
+  border: 2px solid transparent;
+}
+.desk-icon:hover { background: rgba(255,255,255,.55); transform: translateY(-2px); }
+.desk-icon:active { transform: scale(.95); }
+.desk-icon svg { display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.08)); }
+.desk-icon .label {
+  font-size: 11px; line-height: 14px; color: #3a3a50;
+  text-align: center; margin-top: 5px; word-break: break-all;
+  text-shadow: 0 1px 0 rgba(255,255,255,.5);
+}
+.desk-icon.hidden-file { opacity: 0; pointer-events: none; transform: scale(.8); transition: all .35s ease; }
+.desk-icon.hidden-file.visible { opacity: 1; pointer-events: auto; transform: scale(1); }
+.desk-icon.locked { animation: gentle-pulse 2.5s ease-in-out infinite; }
+@keyframes gentle-pulse {
+  0%,100% { border-color: transparent; }
+  50% { border-color: var(--brand); box-shadow: 0 0 12px rgba(124,92,255,.25); }
+}
+
+/* ========== Taskbar ========== */
+#taskbar {
+  height: 48px; background: rgba(245,245,250,.92);
+  backdrop-filter: blur(12px); border-top: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 6px;
+  position: relative; z-index: 1000;
+}
+.taskbar-item {
+  height: 34px; padding: 0 14px; border-radius: 6px;
+  font-size: 12px; color: var(--text); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(0,0,0,.04); transition: all .15s ease;
+  border: 1px solid transparent;
+}
+.taskbar-item:hover { background: rgba(0,0,0,.08); }
+.taskbar-item.active { background: rgba(124,92,255,.12); border-color: var(--brand); }
+.taskbar-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); flex-shrink: 0; }
+.taskbar-hint {
+  margin-left: auto; font-size: 11px; color: var(--text-muted);
+  padding-right: 8px;
+}
+
+/* ========== Windows ========== */
+.window {
+  position: absolute; min-width: 320px; min-height: 180px; max-height: 80vh;
+  background: var(--surface); border-radius: 10px;
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  z-index: 100; transition: box-shadow .2s ease;
+}
+.window.focused { box-shadow: 0 20px 56px rgba(40,40,80,.22); z-index: 999; }
+.window-titlebar {
+  height: 36px; background: #f0f0f6; display: flex; align-items: center;
+  padding: 0 10px; gap: 8px; cursor: grab; flex-shrink: 0;
+}
+.window-titlebar:active { cursor: grabbing; }
+.window-dots { display: flex; gap: 6px; }
+.window-dot {
+  width: 11px; height: 11px; border-radius: 50%; cursor: pointer;
+  transition: all .15s ease;
+}
+.win-close { background: #ff6b6b; }
+.win-close:hover { background: #e85555; }
+.win-min { background: #ffcc4d; }
+.win-min:hover { background: #e8b830; }
+.win-max { background: #51d88a; }
+.win-max:hover { background: #3cc870; }
+.window-title {
+  font-size: 12px; font-weight: 600; color: #4a4a60;
+  margin-left: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  flex: 1;
+}
+.win-close-x {
+  width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border-radius: 4px; color: #8a8a9e;
+  font-size: 14px; font-weight: 700; line-height: 1;
+  transition: all .15s ease; margin-left: auto; flex-shrink: 0;
+}
+.win-close-x:hover { background: #e85555; color: #fff; }
+.window-body {
+  flex: 1; overflow: auto; padding: 16px;
+  background: var(--surface);
+}
+.window-body.grid-view {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px; align-content: start;
+}
+.window-body .file-grid-item {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 10px 6px; border-radius: 8px; cursor: pointer;
+  transition: all .12s ease; border: 2px solid transparent;
+}
+.window-body .file-grid-item:hover { background: rgba(124,92,255,.06); border-color: var(--brand-soft); }
+.window-body .file-grid-item span { font-size: 11px; color: #3a3a50; text-align: center; margin-top: 4px; }
+
+/* ========== Text Viewer ========== */
+.text-viewer {
+  font-size: 14px; line-height: 1.8; color: var(--text);
+  white-space: pre-wrap; font-family: var(--font);
+  padding: 4px;
+}
+.text-viewer .highlight { background: #fff3cd; padding: 2px 6px; border-radius: 3px; font-weight: 600; }
+
+/* ========== Image Viewer ========== */
+.image-viewer {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 200px; background: #f8f8fc; border-radius: 6px;
+}
+.image-viewer svg { max-width: 100%; max-height: 300px; }
+.broken-image {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 200px; color: var(--text-muted);
+  gap: 8px;
+}
+.broken-image .icon { font-size: 48px; opacity: .5; }
+.broken-image .msg { font-size: 13px; }
+
+/* ========== Zip Password ========== */
+.zip-password {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 160px; gap: 14px;
+}
+.zip-password .zip-icon { opacity: .7; }
+.zip-password .zip-label { font-size: 14px; color: var(--text); font-weight: 600; }
+.zip-password .zip-hint { font-size: 12px; color: var(--text-muted); }
+.zip-password input {
+  padding: 10px 16px; border: 2px solid var(--border); border-radius: 8px;
+  font-size: 14px; width: 200px; text-align: center; font-family: var(--font);
+  outline: none; transition: border-color .2s;
+}
+.zip-password input:focus { border-color: var(--brand); }
+.zip-password button {
+  padding: 10px 28px; background: var(--brand); color: #fff;
+  border: none; border-radius: 8px; font-size: 14px; cursor: pointer;
+  font-family: var(--font); transition: all .15s;
+}
+.zip-password button:hover { background: #6a48e8; transform: translateY(-1px); }
+.zip-password .error { color: var(--red); font-size: 12px; }
+
+/* ========== Recycle Bin ========== */
+.recycle-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-radius: 8px; background: var(--surface-muted);
+  margin-bottom: 6px;
+}
+.recycle-item .r-name { font-size: 13px; color: var(--text); }
+.recycle-item .r-meta { font-size: 11px; color: var(--text-muted); }
+.recycle-restore-btn {
+  padding: 4px 14px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px; font-size: 12px; cursor: pointer;
+  font-family: var(--font); transition: all .15s;
+}
+.recycle-restore-btn:hover { background: #4ab89d; }
+.recycle-empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 30px; }
+
+/* ========== Context Menu ========== */
+#context-menu {
+  position: fixed; z-index: 2000; min-width: 180px;
+  background: rgba(255,255,255,.96); backdrop-filter: blur(16px);
+  border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow-lg); padding: 6px 0;
+  display: none; opacity: 0; transform: scale(.95);
+  transition: opacity .12s, transform .12s;
+}
+#context-menu.show { display: block; opacity: 1; transform: scale(1); }
+.ctx-item {
+  padding: 8px 16px; font-size: 13px; color: var(--text);
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+  transition: background .1s;
+}
+.ctx-item:hover { background: var(--brand-soft); color: var(--brand); }
+.ctx-item.disabled { color: var(--text-dim); pointer-events: none; }
+.ctx-divider { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ========== Modal Overlay ========== */
+#modal-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,.45); display: none;
+  align-items: center; justify-content: center;
+}
+#modal-overlay.show { display: flex; }
+.modal {
+  background: var(--surface); border-radius: 14px;
+  padding: 28px; min-width: 360px; max-width: 480px;
+  box-shadow: var(--shadow-lg); animation: modal-in .25s ease;
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(20px) scale(.96); } }
+.modal h3 { font-size: 16px; color: var(--text); margin-bottom: 16px; }
+.modal-table { width: 100%; border-collapse: collapse; }
+.modal-table td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.modal-table td:first-child { color: var(--text-muted); width: 80px; }
+.modal-table td:last-child { color: var(--text); font-weight: 500; }
+.modal-input {
+  width: 100%; padding: 10px 14px; border: 2px solid var(--border);
+  border-radius: 8px; font-size: 14px; font-family: var(--font);
+  outline: none; margin-bottom: 14px;
+}
+.modal-input:focus { border-color: var(--brand); }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+.modal-btn {
+  padding: 8px 20px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  font-family: var(--font); border: none; transition: all .15s;
+}
+.modal-btn.primary { background: var(--brand); color: #fff; }
+.modal-btn.primary:hover { background: #6a48e8; }
+.modal-btn.secondary { background: var(--surface-muted); color: var(--text); }
+.modal-btn.secondary:hover { background: #e8e8f0; }
+
+/* ========== Win Screen ========== */
+.win-screen {
+  text-align: center; padding: 20px 0;
+}
+.win-screen .trophy { font-size: 64px; margin-bottom: 12px; }
+.win-screen h2 { font-size: 22px; color: var(--brand); margin-bottom: 8px; }
+.win-screen .tracking {
+  font-size: 28px; font-weight: 700; color: var(--amber-deep);
+  letter-spacing: 2px; padding: 12px 24px; background: #fff8e8;
+  border-radius: 10px; display: inline-block; margin: 16px 0;
+  border: 2px dashed var(--amber);
+}
+.win-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+/* ========== Settings Toggle ========== */
+.settings-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.settings-row span { font-size: 14px; color: var(--text); }
+.toggle-switch {
+  width: 44px; height: 24px; background: #d0d0d8; border-radius: 12px;
+  cursor: pointer; position: relative; transition: background .2s;
+}
+.toggle-switch.on { background: var(--brand); }
+.toggle-switch::after {
+  content: ''; position: absolute; width: 20px; height: 20px;
+  background: #fff; border-radius: 50%; top: 2px; left: 2px;
+  transition: transform .2s; box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
+.toggle-switch.on::after { transform: translateX(20px); }
+
+/* ========== New File Pop ========== */
+@keyframes pop-in {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.desk-icon.pop-in { animation: pop-in .4s ease forwards; }
+
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 600px) {
+  .window { min-width: 260px; }
+  .desk-icon { width: 68px; padding: 8px 4px 6px; }
+  .desk-icon svg { transform: scale(.85); }
+}
+</style>
+</head>
+<body>
+
+<div id="lockscreen">
+  <div class="lock-time" id="lock-time">09:41</div>
+  <div class="lock-date" id="lock-date">7月30日 星期三</div>
+  <div class="lock-avatar"><img src="avatar.png" alt="花哞" style="width:90px;height:90px;border-radius:50%;object-fit:cover;"></div>
+  <div class="lock-username-text">花哞的电脑</div>
+  <div class="lock-form">
+    <input type="text" class="lock-input" id="lock-user" placeholder="用户名" autocomplete="off" value="花哞">
+    <input type="password" class="lock-input" id="lock-pwd" placeholder="密码" autocomplete="off">
+    <div class="lock-error" id="lock-error">用户名或密码错误</div>
+    <button class="lock-btn" id="lock-btn">解锁</button>
+  </div>
+</div>
+
+<div id="desktop">
+  <div id="desktop-icons"></div>
+</div>
+<div id="taskbar"></div>
+<div id="context-menu"></div>
+<div id="modal-overlay"></div>
+
+<script>
+/* ================================================================
+   伪桌面解谜游戏 - 快递追踪
+   ================================================================ */
+
+// ============ SVG Icons ============
+const ICONS = {
+  folder: (w=46,h=40) => `<svg width="${w}" height="${h}" viewBox="0 0 48 40">
+    <path d="M4 10 Q4 6 8 6 L19 6 L23 10 L40 10 Q44 10 44 14 L44 16 L4 16 Z" fill="#E89C1E"/>
+    <path d="M4 15 L44 15 Q44 36 40 36 L8 36 Q4 36 4 32 Z" fill="#F6B73C"/>
+    <rect x="8" y="20" width="28" height="9" rx="3" fill="#FFD27A" opacity=".6"/>
+  </svg>`,
+  folderSystem: (w=46,h=40) => `<svg width="${w}" height="${h}" viewBox="0 0 48 40">
+    <path d="M4 10 Q4 6 8 6 L19 6 L23 10 L40 10 Q44 10 44 14 L44 16 L4 16 Z" fill="#5CC9B0"/>
+    <path d="M4 15 L44 15 Q44 36 40 36 L8 36 Q4 36 4 32 Z" fill="#6DD5BB"/>
+    <rect x="8" y="20" width="28" height="9" rx="3" fill="#A8EDD5" opacity=".6"/>
+  </svg>`,
+  txt: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#fff" stroke="#C8C8D8" stroke-width="1.2"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#E0E0EE"/>
+    <rect x="10" y="18" width="20" height="2.6" rx="1.3" fill="#8FB8F0"/>
+    <rect x="10" y="24" width="20" height="2.6" rx="1.3" fill="#B6CFF6"/>
+    <rect x="10" y="30" width="13" height="2.6" rx="1.3" fill="#B6CFF6"/>
+    <rect x="10" y="36" width="16" height="2.6" rx="1.3" fill="#D0E2FA"/>
+  </svg>`,
+  png: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#fff" stroke="#C8C8D8" stroke-width="1.2"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#E0E0EE"/>
+    <rect x="9" y="15" width="22" height="16" rx="2" fill="#EAF6FF"/>
+    <circle cx="16" cy="21" r="3.2" fill="#FFCE54"/>
+    <path d="M10 30 L17 23 L23 28 L29 21 L31 30 Z" fill="#7FC99A"/>
+    <rect x="9" y="32" width="22" height="3" rx="1.5" fill="#E0E0EE"/>
+    <rect x="10" y="37" width="20" height="2" rx="1" fill="#E0E0EE"/>
+  </svg>`,
+  jpg: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#fff" stroke="#C8C8D8" stroke-width="1.2"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#E0E0EE"/>
+    <rect x="9" y="15" width="22" height="16" rx="2" fill="#FFF0E8"/>
+    <circle cx="16" cy="21" r="3.2" fill="#FF9A6C"/>
+    <path d="M10 30 L17 23 L23 28 L29 21 L31 30 Z" fill="#C9A0DC"/>
+    <rect x="9" y="32" width="22" height="3" rx="1.5" fill="#E0E0EE"/>
+    <rect x="10" y="37" width="20" height="2" rx="1" fill="#E0E0EE"/>
+  </svg>`,
+  zip: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#F8F4FF" stroke="#7C5CFF" stroke-width="1.4"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#D9CCFF"/>
+    <rect x="14" y="24" width="12" height="9" rx="2" fill="#7C5CFF"/>
+    <path d="M16 24 V20 Q16 16 20 16 Q24 16 24 20 V24" fill="none" stroke="#7C5CFF" stroke-width="2"/>
+    <circle cx="20" cy="28" r="1.6" fill="#fff"/>
+    <rect x="10" y="37" width="20" height="2" rx="1" fill="#D9CCFF"/>
+  </svg>`,
+  recycle: (w=44,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 44 48">
+    <path d="M8 12 L36 12 L34 44 Q33.5 46 31 46 L13 46 Q10.5 46 10 44 Z" fill="#5CC9B0" rx="2"/>
+    <rect x="6" y="8" width="32" height="4" rx="2" fill="#4AB89D"/>
+    <rect x="15" y="5" width="14" height="3.5" rx="1.75" fill="#4AB89D"/>
+    <line x1="14" y1="20" x2="14" y2="38" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="22" y1="20" x2="22" y2="38" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="30" y1="20" x2="30" y2="38" stroke="rgba(255,255,255,.7)" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M10 12 L34 12" stroke="rgba(255,255,255,.5)" stroke-width="2"/>
+  </svg>`,
+  settings: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <circle cx="20" cy="20" r="7" fill="none" stroke="#b0b0c0" stroke-width="2.5"/>
+    <path d="M20 5 L20 10 M20 30 L20 38 M7 13 L11 16 M29 24 L33 27 M5 22 L10 22 M30 20 L35 20 M8 30 L12 27 M28 15 L32 12" stroke="#b0b0c0" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="20" cy="20" r="3" fill="#b0b0c0"/>
+    <rect x="10" y="37" width="20" height="2" rx="1" fill="#d0d0d8"/>
+  </svg>`,
+  zipBig: (w=64,h=76) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#F8F4FF" stroke="#7C5CFF" stroke-width="1.4"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#D9CCFF"/>
+    <rect x="13" y="23" width="14" height="10" rx="2" fill="#7C5CFF"/>
+    <path d="M15 23 V19 Q15 15 20 15 Q25 15 25 19 V23" fill="none" stroke="#7C5CFF" stroke-width="2.2"/>
+    <circle cx="20" cy="28" r="1.8" fill="#fff"/>
+  </svg>`,
+};
+
+// ============ Photo Image (花哞合照 - 两只奶牛 + 花田) ============
+const PHOTO_SVG = `<svg viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="psky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#FFE8F0"/><stop offset="100%" stop-color="#FFF5E8"/></linearGradient>
+    <radialGradient id="psun" cx="50%" cy="50%"><stop offset="0%" stop-color="#FFF5D0"/><stop offset="100%" stop-color="#FFD89B"/></radialGradient>
+  </defs>
+  <rect width="400" height="280" fill="url(#psky)"/>
+  <!-- Sun -->
+  <circle cx="320" cy="50" r="28" fill="url(#psun)" opacity=".7"/>
+  <!-- Flower field background -->
+  <rect x="0" y="180" width="400" height="100" fill="#C8E8C0"/>
+  <ellipse cx="60" cy="220" rx="80" ry="20" fill="#B8D8B0"/>
+  <ellipse cx="300" cy="230" rx="90" ry="18" fill="#B8D8B0"/>
+  <!-- Small flowers scattered -->
+  <g fill="#FF8FA8" opacity=".7"><circle cx="30" cy="210" r="3"/><circle cx="350" cy="215" r="3"/><circle cx="180" cy="250" r="3"/><circle cx="270" cy="205" r="2.5"/><circle cx="100" cy="245" r="2.5"/></g>
+  <g fill="#FFE066" opacity=".8"><circle cx="50" cy="235" r="3"/><circle cx="370" cy="240" r="3"/><circle cx="150" cy="215" r="2.5"/><circle cx="220" cy="245" r="2.5"/></g>
+  <g fill="#C8A0E8" opacity=".7"><circle cx="120" cy="200" r="3"/><circle cx="320" cy="225" r="2.5"/><circle cx="200" cy="210" r="2.5"/></g>
+  <!-- Cow 1 (left, bigger - 花哞) -->
+  <g transform="translate(100,110)">
+    <!-- Body -->
+    <ellipse cx="0" cy="50" rx="45" ry="32" fill="#fff" stroke="#333" stroke-width="2.5"/>
+    <!-- Black spots -->
+    <ellipse cx="-15" cy="40" rx="14" ry="10" fill="#2c2c3a"/>
+    <ellipse cx="18" cy="55" rx="12" ry="9" fill="#2c2c3a"/>
+    <ellipse cx="5" cy="68" rx="8" ry="6" fill="#2c2c3a"/>
+    <!-- Head -->
+    <ellipse cx="-38" cy="25" rx="22" ry="20" fill="#fff" stroke="#333" stroke-width="2.5"/>
+    <!-- Ears -->
+    <ellipse cx="-52" cy="15" rx="6" ry="9" fill="#2c2c3a" stroke="#333" stroke-width="1.5"/>
+    <ellipse cx="-52" cy="15" rx="3" ry="5" fill="#FFB8C8"/>
+    <ellipse cx="-24" cy="15" rx="6" ry="9" fill="#2c2c3a" stroke="#333" stroke-width="1.5"/>
+    <ellipse cx="-24" cy="15" rx="3" ry="5" fill="#FFB8C8"/>
+    <!-- Horns -->
+    <path d="M-44 8 Q-48 2 -46 -2" fill="none" stroke="#E8D8B0" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-32 8 Q-28 2 -30 -2" fill="none" stroke="#E8D8B0" stroke-width="3" stroke-linecap="round"/>
+    <!-- Face spot -->
+    <ellipse cx="-42" cy="30" rx="8" ry="6" fill="#2c2c3a"/>
+    <!-- Eyes -->
+    <circle cx="-44" cy="22" r="3" fill="#2c2c3a"/>
+    <circle cx="-32" cy="22" r="3" fill="#2c2c3a"/>
+    <circle cx="-43" cy="21" r="1" fill="#fff"/>
+    <circle cx="-31" cy="21" r="1" fill="#fff"/>
+    <!-- Snout -->
+    <ellipse cx="-38" cy="34" rx="9" ry="6" fill="#FFD0DC"/>
+    <circle cx="-41" cy="33" r="1.5" fill="#2c2c3a"/>
+    <circle cx="-35" cy="33" r="1.5" fill="#2c2c3a"/>
+    <!-- Smile -->
+    <path d="M-40 38 Q-38 40 -36 38" fill="none" stroke="#2c2c3a" stroke-width="1.5" stroke-linecap="round"/>
+    <!-- Legs -->
+    <rect x="-25" y="72" width="6" height="18" rx="2" fill="#fff" stroke="#333" stroke-width="2"/>
+    <rect x="-10" y="72" width="6" height="18" rx="2" fill="#2c2c3a" stroke="#333" stroke-width="2"/>
+    <rect x="8" y="72" width="6" height="18" rx="2" fill="#fff" stroke="#333" stroke-width="2"/>
+    <rect x="22" y="72" width="6" height="18" rx="2" fill="#2c2c3a" stroke="#333" stroke-width="2"/>
+    <!-- Tail -->
+    <path d="M42 45 Q55 35 52 20" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="52" cy="18" r="4" fill="#2c2c3a"/>
+    <!-- Flower on ear -->
+    <g transform="translate(-48,8)">
+      <circle cx="0" cy="0" r="2.5" fill="#FF8FA8"/><circle cx="3" cy="0" r="2.5" fill="#FF8FA8"/>
+      <circle cx="0" cy="3" r="2.5" fill="#FF8FA8"/><circle cx="-3" cy="0" r="2.5" fill="#FF8FA8"/>
+      <circle cx="0" cy="0" r="2" fill="#FFE066"/>
+    </g>
+  </g>
+  <!-- Cow 2 (right, smaller - 玩家/朋友) -->
+  <g transform="translate(240,140) scale(.8)">
+    <ellipse cx="0" cy="50" rx="45" ry="32" fill="#fff" stroke="#333" stroke-width="2.5"/>
+    <ellipse cx="-10" cy="45" rx="12" ry="9" fill="#2c2c3a"/>
+    <ellipse cx="20" cy="50" rx="10" ry="8" fill="#2c2c3a"/>
+    <ellipse cx="40" cy="25" rx="22" ry="20" fill="#fff" stroke="#333" stroke-width="2.5"/>
+    <ellipse cx="26" cy="15" rx="6" ry="9" fill="#2c2c3a" stroke="#333" stroke-width="1.5"/>
+    <ellipse cx="26" cy="15" rx="3" ry="5" fill="#FFB8C8"/>
+    <ellipse cx="54" cy="15" rx="6" ry="9" fill="#2c2c3a" stroke="#333" stroke-width="1.5"/>
+    <ellipse cx="54" cy="15" rx="3" ry="5" fill="#FFB8C8"/>
+    <path d="M28 8 Q24 2 26 -2" fill="none" stroke="#E8D8B0" stroke-width="3" stroke-linecap="round"/>
+    <path d="M40 8 Q44 2 42 -2" fill="none" stroke="#E8D8B0" stroke-width="3" stroke-linecap="round"/>
+    <ellipse cx="36" cy="30" rx="7" ry="5" fill="#2c2c3a"/>
+    <circle cx="34" cy="22" r="3" fill="#2c2c3a"/>
+    <circle cx="46" cy="22" r="3" fill="#2c2c3a"/>
+    <circle cx="35" cy="21" r="1" fill="#fff"/>
+    <circle cx="47" cy="21" r="1" fill="#fff"/>
+    <ellipse cx="40" cy="34" rx="9" ry="6" fill="#FFD0DC"/>
+    <circle cx="37" cy="33" r="1.5" fill="#2c2c3a"/>
+    <circle cx="43" cy="33" r="1.5" fill="#2c2c3a"/>
+    <path d="M38 38 Q40 40 42 38" fill="none" stroke="#2c2c3a" stroke-width="1.5" stroke-linecap="round"/>
+    <rect x="-25" y="72" width="6" height="18" rx="2" fill="#2c2c3a" stroke="#333" stroke-width="2"/>
+    <rect x="-10" y="72" width="6" height="18" rx="2" fill="#fff" stroke="#333" stroke-width="2"/>
+    <rect x="8" y="72" width="6" height="18" rx="2" fill="#2c2c3a" stroke="#333" stroke-width="2"/>
+    <rect x="22" y="72" width="6" height="18" rx="2" fill="#fff" stroke="#333" stroke-width="2"/>
+    <path d="M-42 45 Q-55 35 -52 20" fill="none" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="-52" cy="18" r="4" fill="#2c2c3a"/>
+  </g>
+  <!-- Hearts floating -->
+  <g fill="#FF8FA8" opacity=".5">
+    <path d="M170 60 C168 56 162 56 162 62 C162 68 170 74 170 74 C170 74 178 68 178 62 C178 56 172 56 170 60Z"/>
+    <path d="M280 50 C278 47 273 47 273 52 C273 57 280 62 280 62 C280 62 287 57 287 52 C287 47 282 47 280 50Z" opacity=".7"/>
+  </g>
+  <!-- Date stamp -->
+  <text x="340" y="265" font-size="10" fill="#aaa" font-family="monospace">2021.09.14</text>
+</svg>`;
+
+// ============ File System (花哞版本) ============
+const FILE_SYSTEM = {
+  'file-todo': {
+    id: 'file-todo', name: '待办清单.txt', type: 'text', icon: 'txt',
+    pos: { x: 16, y: 16 },
+    content: '【七周年礼物 · 待办清单】\n\n[X] 拿快递\n[X] 写一封信\n[X] 录祝福视频\n[ ] 布置礼物',
+    author: '花哞', modified: '2026-07-28 21:30'
+  },
+  'file-diary': {
+    id: 'file-diary', name: '日记.txt', type: 'text', icon: 'txt',
+    pos: { x: 16, y: 96 },
+    content: '7月25日  晴\n\n还有几天就七周年了。\n每年都在发愁送什么礼物，\n今年也不例外。\n花、巧克力、首饰……\n感觉能想到的都送过了。\n到底怎样才能给他一个\n真正意想不到的惊喜？\n\n7月26日  阴\n\n今天走在路上突然想到了\n一个绝妙的主意！\n可惜这里位置太小写不下，\n总之——这次他绝对猜不到。\n\n7月27日  晴\n\n计划开始执行了。\n但要把礼物的秘密好好藏\n起来才行，不能让他提前\n翻到。',
+    author: '花哞', modified: '2026-07-27 23:42'
+  },
+  'file-photo': {
+    id: 'file-photo', name: '合照.png', type: 'image', icon: 'png',
+    pos: { x: 16, y: 176 },
+    imageSrc: 'photo.png',
+    author: '水母狗', modified: '2020-01-20 15:30',
+    captureDate: '2019-07-29',
+    hiddenTextContent: '翻翻相册，这是我存下的和乐乐的第二张合照（不要问为什么是第二张）。\n\n时至今日，这也许还是印象最深的一次见面。现在都还能回想起来当时在猛猛倒计时到2月10号，我们一天一天倒数，一天一天期待见面。我们能一路走来是特别好的事情。\n\n今天翻到这张照片，脑子里面只有两句话：\n\n很高兴和你走到第七年。\n很高兴遇见你。'
+  },
+  'file-zip': {
+    id: 'file-zip', name: '礼物准备.zip', type: 'zip', icon: 'zip',
+    pos: { x: 16, y: 256 },
+    hidden: true,
+    password: '水母狗',
+    unlocked: false,
+    extractFiles: [
+      {
+        id: 'file-tracking-jpg', name: '最后的秘密.png', type: 'image', icon: 'png',
+        realType: 'text',
+        content: '高德位置口令：008217\n神秘代码：0423',
+        author: '花哞', modified: '2026-07-26 14:30'
+      },
+      {
+        id: 'file-setup-steps', name: '布置步骤.txt', type: 'text', icon: 'txt',
+        content: '铁盒放在冰箱；\n钥匙贴在铁盒下面；\n紫光灯放在床头柜；\n信藏到枕头里；\n礼物送达指定地点。',
+        author: '花哞', modified: '2026-07-26 22:00'
+      }
+    ]
+  },
+  'file-recycle': {
+    id: 'file-recycle', name: '回收站', type: 'recycle', icon: 'recycle',
+    pos: { x: 16, y: 336 },
+    deletedFiles: [
+      {
+        id: 'file-deleted-system', name: '系统说明.txt', type: 'text', icon: 'txt',
+        content: '系统维护说明 v2.1\n==================\n\n【一、系统概述】\n本终端采用定制文件系统，\n部分文件默认处于隐藏状态\n以保护数据完整性。\n\n【二、文件格式兼容性】\n由于系统迁移历史原因，\n部分文件的存储格式与显示\n后缀名存在不一致的情况。\n\n重要提示：\n某些文件即使能够正常打开，\n其显示的内容也并非\n完整数据。修改后缀名后，\n文件可能会呈现与原先\n完全不同的内容。\n\n建议用户对已打开的文件\n也尝试修改后缀名，\n以获取完整数据。\n\n【三、隐藏文件访问】\n如需显示隐藏文件，请在桌面\n空白区域右键点击，选择\n"显示隐藏文件"选项。\n被隐藏的文件将在启用后\n于桌面可见。\n\n【四、注意事项】\n请勿删除或移动隐藏的\n任何文件，误操作\n可能导致数据丢失。\n\n—— 系统管理进程\n更新日期：2026-07-01',
+        author: '系统', modified: '2026-07-01 08:00'
+      }
+    ]
+  }
+};
+
+// ============ Game State ============
+const STATE = {
+  windows: {},
+  openWindowIds: [],
+  windowZIndex: 100,
+  showHidden: false,
+  zipUnlocked: false,
+  extractedFiles: [],
+  restoredFiles: [],
+  dragging: null,
+  dragOffset: { x: 0, y: 0 },
+  contextTarget: null,
+  gameCompleted: false
+};
+
+// ============ DOM Refs ============
+const $desktop = document.getElementById('desktop');
+const $desktopIcons = document.getElementById('desktop-icons');
+const $taskbar = document.getElementById('taskbar');
+const $contextMenu = document.getElementById('context-menu');
+const $modalOverlay = document.getElementById('modal-overlay');
+
+// ============ Helpers ============
+function getFile(id) {
+  for (const key of Object.keys(FILE_SYSTEM)) {
+    const item = FILE_SYSTEM[key];
+    if (item.id === id) return item;
+    if (item.children && item.children[id]) return item.children[id];
+    if (item.deletedFiles) {
+      const df = item.deletedFiles.find(f => f.id === id);
+      if (df) return df;
+    }
+    if (item.extractFiles) {
+      const ef = item.extractFiles.find(f => f.id === id);
+      if (ef) return ef;
+    }
+  }
+  for (const f of STATE.extractedFiles) {
+    if (f.id === id) return f;
+  }
+  return null;
+}
+
+function getFileParent(id) {
+  for (const key of Object.keys(FILE_SYSTEM)) {
+    const item = FILE_SYSTEM[key];
+    if (item.children && item.children[id]) return item;
+    if (item.deletedFiles && item.deletedFiles.find(f => f.id === id)) return item;
+    if (item.extractFiles && item.extractFiles.find(f => f.id === id)) return item;
+  }
+  return null;
+}
+
+function isDesktopFile(id) {
+  return FILE_SYSTEM.hasOwnProperty(id) || STATE.extractedFiles.some(f => f.id === id);
+}
+
+function getAllDesktopFiles() {
+  const files = [];
+  for (const key of Object.keys(FILE_SYSTEM)) {
+    const item = FILE_SYSTEM[key];
+    if (item.hidden && !STATE.showHidden) continue;
+    files.push(item);
+  }
+  files.push(...STATE.extractedFiles);
+  return files;
+}
+
+// ============ Desktop Rendering ============
+function renderDesktopIcons() {
+  $desktopIcons.innerHTML = '';
+  const files = getAllDesktopFiles();
+  const ICON_HEIGHT = 84;
+  const COLUMN_WIDTH = 90;
+  const TOP_MARGIN = 16;
+  const LEFT_MARGIN = 16;
+  const desktopHeight = window.innerHeight - 48; // minus taskbar
+  const iconsPerColumn = Math.floor((desktopHeight - TOP_MARGIN - 16) / ICON_HEIGHT);
+  let col = 0;
+  let row = 0;
+  files.forEach(file => {
+    if (row >= iconsPerColumn) {
+      col++;
+      row = 0;
+    }
+    const el = document.createElement('div');
+    el.className = 'desk-icon';
+    let iconHtml = ICONS[file.icon] ? ICONS[file.icon]() : ICONS.folder();
+    if (file.id === 'file-zip' && !file.unlocked) {
+      el.classList.add('locked');
+    }
+    if (file.hidden) {
+      el.classList.add('hidden-file');
+      if (STATE.showHidden) el.classList.add('visible');
+    }
+    el.innerHTML = iconHtml + `<span class="label">${file.name}</span>`;
+    el.dataset.fileId = file.id;
+    el.addEventListener('dblclick', () => openFile(file.id));
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectIcon(el);
+    });
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      STATE.contextTarget = file.id;
+      showContextMenu(e.clientX, e.clientY, file.id);
+    });
+    el.style.position = 'absolute';
+    el.style.left = (LEFT_MARGIN + col * COLUMN_WIDTH) + 'px';
+    el.style.top = (TOP_MARGIN + row * ICON_HEIGHT) + 'px';
+    $desktopIcons.appendChild(el);
+    row++;
+  });
+}
+
+function selectIcon(el) {
+  document.querySelectorAll('.desk-icon.selected').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ============ Window Management ============
+function createWindow(fileId, title, x, y) {
+  if (STATE.windows[fileId]) {
+    focusWindow(fileId);
+    return;
+  }
+
+  const win = document.createElement('div');
+  win.className = 'window focused';
+  win.dataset.fileId = fileId;
+  win.style.left = x + 'px';
+  win.style.top = y + 'px';
+  win.style.zIndex = ++STATE.windowZIndex;
+
+  // Titlebar
+  const titlebar = document.createElement('div');
+  titlebar.className = 'window-titlebar';
+  titlebar.innerHTML = `
+    <div class="window-dots">
+      <div class="window-dot win-close" data-action="close"></div>
+      <div class="window-dot win-min" data-action="minimize"></div>
+      <div class="window-dot win-max"></div>
+    </div>
+    <span class="window-title">${title}</span>
+    <div class="win-close-x" data-action="close" title="关闭">&#10005;</div>
+  `;
+  win.appendChild(titlebar);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'window-body';
+  win.appendChild(body);
+
+  $desktop.appendChild(win);
+
+  STATE.windows[fileId] = { el: win, x, y, body };
+  STATE.openWindowIds.push(fileId);
+
+  // Titlebar events
+  titlebar.addEventListener('mousedown', (e) => startDrag(e, fileId));
+  titlebar.querySelector('.win-close').addEventListener('click', (e) => { e.stopPropagation(); closeWindow(fileId); });
+  titlebar.querySelector('.win-close-x').addEventListener('click', (e) => { e.stopPropagation(); closeWindow(fileId); });
+  titlebar.querySelector('.win-min').addEventListener('click', (e) => { e.stopPropagation(); minimizeWindow(fileId); });
+
+  win.addEventListener('mousedown', () => focusWindow(fileId));
+
+  renderWindowContent(fileId);
+  updateTaskbar();
+  return win;
+}
+
+function focusWindow(fileId) {
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  w.el.style.zIndex = ++STATE.windowZIndex;
+  document.querySelectorAll('.window.focused').forEach(el => el.classList.remove('focused'));
+  w.el.classList.add('focused');
+  updateTaskbar();
+}
+
+function closeWindow(fileId) {
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  w.el.remove();
+  delete STATE.windows[fileId];
+  STATE.openWindowIds = STATE.openWindowIds.filter(id => id !== fileId);
+  updateTaskbar();
+}
+
+function minimizeWindow(fileId) {
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  w.el.style.display = 'none';
+  updateTaskbar();
+}
+
+function restoreWindow(fileId) {
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  w.el.style.display = 'flex';
+  focusWindow(fileId);
+}
+
+function startDrag(e, fileId) {
+  if (e.target.classList.contains('window-dot')) return;
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  STATE.dragging = fileId;
+  STATE.dragOffset = { x: e.clientX - w.x, y: e.clientY - w.y };
+  document.addEventListener('mousemove', onDrag);
+  document.addEventListener('mouseup', stopDrag);
+}
+
+function onDrag(e) {
+  if (!STATE.dragging) return;
+  const w = STATE.windows[STATE.dragging];
+  if (!w) return;
+  w.x = e.clientX - STATE.dragOffset.x;
+  w.y = e.clientY - STATE.dragOffset.y;
+  w.el.style.left = w.x + 'px';
+  w.el.style.top = w.y + 'px';
+}
+
+function stopDrag() {
+  STATE.dragging = null;
+  document.removeEventListener('mousemove', onDrag);
+  document.removeEventListener('mouseup', stopDrag);
+}
+
+function updateTaskbar() {
+  $taskbar.innerHTML = '';
+  const openIds = STATE.openWindowIds.filter(id => STATE.windows[id] && STATE.windows[id].el.style.display !== 'none');
+  openIds.forEach(id => {
+    const f = getFile(id);
+    if (!f) return;
+    const item = document.createElement('div');
+    item.className = 'taskbar-item';
+    const isFocused = STATE.windows[id] && STATE.windows[id].el.classList.contains('focused');
+    if (isFocused) item.classList.add('active');
+    item.innerHTML = `<span class="taskbar-dot"></span>${f.name}`;
+    item.addEventListener('click', () => {
+      const w = STATE.windows[id];
+      if (w && w.el.style.display === 'none') {
+        restoreWindow(id);
+      } else {
+        focusWindow(id);
+      }
+    });
+    $taskbar.appendChild(item);
+  });
+  // Hint
+  const hint = document.createElement('span');
+  hint.className = 'taskbar-hint';
+  hint.textContent = STATE.gameCompleted ? '谜题已解开！' : '';
+  $taskbar.appendChild(hint);
+}
+
+// ============ Window Content ============
+function renderWindowContent(fileId) {
+  const w = STATE.windows[fileId];
+  if (!w) return;
+  const file = getFile(fileId);
+  if (!file) return;
+  const body = w.body;
+  body.innerHTML = '';
+
+  switch (file.type) {
+    case 'folder':
+      body.classList.add('grid-view');
+      const children = file.children || {};
+      Object.values(children).forEach(child => {
+        if (child.hidden && !STATE.showHidden) return;
+        const item = document.createElement('div');
+        item.className = 'file-grid-item';
+        let iconFn = ICONS[child.icon] || ICONS.txt;
+        item.innerHTML = iconFn(34, 40) + `<span>${child.name}</span>`;
+        item.addEventListener('dblclick', () => openFile(child.id));
+        item.addEventListener('contextmenu', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          STATE.contextTarget = child.id;
+          showContextMenu(e.clientX, e.clientY, child.id);
+        });
+        body.appendChild(item);
+      });
+      break;
+
+    case 'text':
+      body.classList.remove('grid-view');
+      if (file.content) {
+        const tv = document.createElement('div');
+        tv.className = 'text-viewer';
+        tv.textContent = file.content;
+        body.appendChild(tv);
+      } else {
+        // Damaged file - no text content
+        const broken = document.createElement('div');
+        broken.className = 'broken-image';
+        broken.innerHTML = `
+          <div class="icon">📄❌</div>
+          <div class="msg">无法打开此文件</div>
+          <div class="msg" style="font-size:11px;color:#aaa;">文件可能已损坏或格式不正确</div>
+        `;
+        body.appendChild(broken);
+      }
+      break;
+
+    case 'image':
+      body.classList.remove('grid-view');
+      if (file.realType === 'text' && !file.imageSrc) {
+        // Wrong extension - show broken image
+        const broken = document.createElement('div');
+        broken.className = 'broken-image';
+        broken.innerHTML = `
+          <div class="icon">🖼️❌</div>
+          <div class="msg">无法打开此文件</div>
+          <div class="msg" style="font-size:11px;color:#aaa;">文件可能已损坏或格式不正确</div>
+        `;
+        body.appendChild(broken);
+      } else if (file.imageSrc) {
+        const iv = document.createElement('div');
+        iv.className = 'image-viewer';
+        iv.innerHTML = `<img src="${file.imageSrc}" style="max-width:100%;max-height:300px;border-radius:6px;" alt="${file.name}">`;
+        body.appendChild(iv);
+      } else if (file.imageContent) {
+        const iv = document.createElement('div');
+        iv.className = 'image-viewer';
+        iv.innerHTML = file.imageContent;
+        body.appendChild(iv);
+      } else {
+        // No image content available - damaged
+        const broken = document.createElement('div');
+        broken.className = 'broken-image';
+        broken.innerHTML = `
+          <div class="icon">🖼️❌</div>
+          <div class="msg">无法打开此文件</div>
+          <div class="msg" style="font-size:11px;color:#aaa;">文件可能已损坏或格式不正确</div>
+        `;
+        body.appendChild(broken);
+      }
+      break;
+
+    case 'zip':
+      body.classList.remove('grid-view');
+      if (file.unlocked) {
+        // Show extracted files
+        body.classList.add('grid-view');
+        file.extractFiles.forEach(ef => {
+          const item = document.createElement('div');
+          item.className = 'file-grid-item';
+          let iconFn = ICONS[ef.icon] || ICONS.txt;
+          item.innerHTML = iconFn(34, 40) + `<span>${ef.name}</span>`;
+          item.addEventListener('dblclick', () => openFile(ef.id));
+          item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            STATE.contextTarget = ef.id;
+            showContextMenu(e.clientX, e.clientY, ef.id);
+          });
+          body.appendChild(item);
+        });
+      } else {
+        // Show password input
+        const zp = document.createElement('div');
+        zp.className = 'zip-password';
+        zp.innerHTML = `
+          <div class="zip-icon">${ICONS.zipBig ? ICONS.zipBig() : ICONS.zip(48,56)}</div>
+          <div class="zip-label">此文件已加密</div>
+          <div class="zip-hint">提示：合照的作者</div>
+          <input type="text" id="zip-password-input" placeholder="输入密码..." autocomplete="off">
+          <button id="zip-unlock-btn">解压</button>
+          <div class="error" id="zip-error"></div>
+        `;
+        body.appendChild(zp);
+
+        setTimeout(() => {
+          const input = document.getElementById('zip-password-input');
+          const btn = document.getElementById('zip-unlock-btn');
+          const err = document.getElementById('zip-error');
+          if (!input || !btn) return;
+
+          const tryUnlock = () => {
+            const pwd = input.value.trim();
+            if (pwd === file.password) {
+              file.unlocked = true;
+              STATE.zipUnlocked = true;
+              renderWindowContent(fileId);
+              updateTaskbar();
+            } else {
+              err.textContent = '密码错误，请重试';
+              input.value = '';
+              input.focus();
+            }
+          };
+
+          btn.addEventListener('click', tryUnlock);
+          input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') tryUnlock();
+          });
+        }, 50);
+      }
+      break;
+
+    case 'recycle':
+      body.classList.remove('grid-view');
+      if (file.deletedFiles && file.deletedFiles.length > 0 && !STATE.restoredFiles.includes(file.deletedFiles[0].id)) {
+        file.deletedFiles.forEach(df => {
+          const item = document.createElement('div');
+          item.className = 'recycle-item';
+          item.innerHTML = `
+            <div>
+              <div class="r-name">${df.name}</div>
+              <div class="r-meta">删除时间: ${df.modified || '未知'} | 类型: 文本文档</div>
+            </div>
+            <button class="recycle-restore-btn">还原</button>
+          `;
+          item.querySelector('.recycle-restore-btn').addEventListener('click', () => {
+            restoreFromRecycle(df.id);
+          });
+          body.appendChild(item);
+        });
+      } else {
+        const empty = document.createElement('div');
+        empty.className = 'recycle-empty';
+        empty.textContent = '回收站已清空';
+        body.appendChild(empty);
+      }
+      break;
+
+    case 'damaged':
+      body.classList.remove('grid-view');
+      const dmgBroken = document.createElement('div');
+      dmgBroken.className = 'broken-image';
+      dmgBroken.innerHTML = `
+        <div class="icon">📄❌</div>
+        <div class="msg">无法打开此文件</div>
+        <div class="msg" style="font-size:11px;color:#aaa;">文件已损坏或格式不正确</div>
+      `;
+      body.appendChild(dmgBroken);
+      break;
+
+    default:
+      body.classList.remove('grid-view');
+      body.innerHTML = '<div style="padding:20px;color:#999;">无法打开此文件类型</div>';
+  }
+}
+
+function restoreFromRecycle(fileId) {
+  const file = getFile(fileId);
+  if (!file) return;
+  STATE.restoredFiles.push(fileId);
+  // Remove from recycle bin's deleted files
+  const recycle = FILE_SYSTEM['file-recycle'];
+  if (recycle && recycle.deletedFiles) {
+    recycle.deletedFiles = recycle.deletedFiles.filter(f => f.id !== fileId);
+  }
+  // Add to desktop
+  STATE.extractedFiles.push(file);
+  renderDesktopIcons();
+  // Re-render recycle window if open
+  if (STATE.windows['file-recycle']) {
+    renderWindowContent('file-recycle');
+  }
+  // New file pop animation
+  setTimeout(() => {
+    const icons = $desktopIcons.querySelectorAll('.desk-icon');
+    icons.forEach(icon => {
+      if (icon.dataset.fileId === fileId) icon.classList.add('pop-in');
+    });
+  }, 100);
+  updateTaskbar();
+}
+
+// ============ File Operations ============
+function openFile(fileId) {
+  const file = getFile(fileId);
+  if (!file) return;
+
+  // If it's a folder or recycle, open in a window
+  if (file.type === 'folder' || file.type === 'recycle' || file.type === 'zip') {
+    const existing = STATE.windows[fileId];
+    if (existing) {
+      if (existing.el.style.display === 'none') {
+        restoreWindow(fileId);
+      } else {
+        focusWindow(fileId);
+      }
+      return;
+    }
+    const x = 120 + Object.keys(STATE.windows).length * 30;
+    const y = 40 + Object.keys(STATE.windows).length * 30;
+    createWindow(fileId, file.name, x, y);
+    return;
+  }
+
+  // Text or image - open in a window
+  const existing = STATE.windows[fileId];
+  if (existing) {
+    if (existing.el.style.display === 'none') {
+      restoreWindow(fileId);
+    } else {
+      focusWindow(fileId);
+    }
+    return;
+  }
+  const x = 120 + Object.keys(STATE.windows).length * 30;
+  const y = 40 + Object.keys(STATE.windows).length * 30;
+  const win = createWindow(fileId, file.name, x, y);
+
+  // No win screen popup
+}
+
+// ============ Context Menu ============
+function showContextMenu(x, y, fileId) {
+  $contextMenu.innerHTML = '';
+  $contextMenu.style.left = x + 'px';
+  $contextMenu.style.top = y + 'px';
+
+  const file = fileId ? getFile(fileId) : null;
+
+  if (file) {
+    // File context menu
+    addCtxItem('打开', () => openFile(fileId));
+    addCtxDivider();
+    addCtxItem('属性', () => showProperties(fileId));
+    addCtxItem('重命名', () => showRename(fileId));
+    if (file.type === 'text' || file.realType === 'text' || file.type === 'damaged') {
+      addCtxDivider();
+      addCtxItem('删除', () => deleteFile(fileId));
+    }
+  } else {
+    // Desktop context menu
+    addCtxItem('刷新', () => { renderDesktopIcons(); });
+    addCtxDivider();
+    addCtxItem(
+      STATE.showHidden ? '隐藏隐藏文件' : '显示隐藏文件',
+      () => toggleHiddenFiles()
+    );
+  }
+
+  $contextMenu.classList.add('show');
+  setTimeout(() => document.addEventListener('click', hideContextMenu, { once: true }), 0);
+}
+
+function addCtxItem(label, action) {
+  const item = document.createElement('div');
+  item.className = 'ctx-item';
+  item.textContent = label;
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    hideContextMenu();
+    action();
+  });
+  $contextMenu.appendChild(item);
+}
+
+function addCtxDivider() {
+  const div = document.createElement('div');
+  div.className = 'ctx-divider';
+  $contextMenu.appendChild(div);
+}
+
+function hideContextMenu() {
+  $contextMenu.classList.remove('show');
+}
+
+function toggleHiddenFiles() {
+  STATE.showHidden = !STATE.showHidden;
+  renderDesktopIcons();
+  // Refresh open folder windows
+  Object.keys(STATE.windows).forEach(id => {
+    const file = getFile(id);
+    if (file && (file.type === 'folder' || file.type === 'recycle')) {
+      renderWindowContent(id);
+    }
+  });
+  updateTaskbar();
+}
+
+function deleteFile(fileId) {
+  const file = getFile(fileId);
+  if (!file) return;
+  // Move to recycle bin
+  const recycle = FILE_SYSTEM['file-recycle'];
+  if (!recycle.deletedFiles) recycle.deletedFiles = [];
+  recycle.deletedFiles.push(file);
+
+  // Remove from desktop
+  if (isDesktopFile(fileId)) {
+    STATE.extractedFiles = STATE.extractedFiles.filter(f => f.id !== fileId);
+  }
+  // Close window if open
+  closeWindow(fileId);
+  renderDesktopIcons();
+  updateTaskbar();
+}
+
+// ============ Modals ============
+function showProperties(fileId) {
+  const file = getFile(fileId);
+  if (!file) return;
+
+  const ext = file.name.includes('.') ? file.name.split('.').pop().toUpperCase() + ' 文件' : '文件夹';
+  let rows = `
+    <tr><td>文件名</td><td>${file.name}</td></tr>
+    <tr><td>类型</td><td>${ext}</td></tr>
+    <tr><td>修改日期</td><td>${file.modified || '未知'}</td></tr>
+  `;
+  if (file.author) {
+    rows += `<tr><td>作者</td><td>${file.author}</td></tr>`;
+  }
+  if (file.captureDate) {
+    rows += `<tr><td>拍摄日期</td><td>${file.captureDate}</td></tr>`;
+  }
+
+  $modalOverlay.innerHTML = `
+    <div class="modal">
+      <h3>${file.name} - 属性</h3>
+      <table class="modal-table">${rows}</table>
+      <div class="modal-btns" style="margin-top:16px;">
+        <button class="modal-btn primary close-modal">确定</button>
+      </div>
+    </div>
+  `;
+  $modalOverlay.classList.add('show');
+  $modalOverlay.querySelector('.close-modal').addEventListener('click', hideModal);
+  $modalOverlay.addEventListener('click', (e) => { if (e.target === $modalOverlay) hideModal(); });
+}
+
+function showRename(fileId) {
+  const file = getFile(fileId);
+  if (!file) return;
+
+  $modalOverlay.innerHTML = `
+    <div class="modal">
+      <h3>重命名文件</h3>
+      <input class="modal-input" id="rename-input" value="${file.name}" autocomplete="off">
+      <div class="modal-btns">
+        <button class="modal-btn secondary close-modal">取消</button>
+        <button class="modal-btn primary" id="rename-confirm">确定</button>
+      </div>
+    </div>
+  `;
+  $modalOverlay.classList.add('show');
+  $modalOverlay.querySelector('.close-modal').addEventListener('click', hideModal);
+  $modalOverlay.querySelector('#rename-confirm').addEventListener('click', () => {
+    const newName = document.getElementById('rename-input').value.trim();
+    if (newName && newName !== file.name) {
+      // Track original content type if not already tracked
+      if (!file.originalType) {
+        file.originalType = file.type;
+        if (file.content && !file.hiddenTextContent && !file.renamedContent) {
+          file.originalTextContent = file.content;
+        }
+      }
+      file.name = newName;
+      // Update icon and type based on extension
+      if (newName.endsWith('.txt')) {
+        file.icon = 'txt';
+        file.type = 'text';
+        // If image has hidden text content, switching to .txt reveals it
+        if (file.hiddenTextContent) {
+          file.content = file.hiddenTextContent;
+        } else if (file.realType === 'text' && file.originalTextContent) {
+          file.content = file.originalTextContent;
+        } else if (file.originalType === 'text' && file.originalTextContent) {
+          // Was originally text, keep content
+          file.content = file.originalTextContent;
+        } else {
+          // No text content available - mark as damaged
+          file.content = null;
+        }
+      } else if (newName.endsWith('.png')) {
+        file.icon = 'png';
+        file.type = 'image';
+        // Only non-damaged if it has image source
+      } else if (newName.endsWith('.jpg') || newName.endsWith('.jpeg')) {
+        file.icon = 'jpg';
+        file.type = 'image';
+      } else {
+        // Unknown extension - file becomes damaged
+        file.type = 'damaged';
+      }
+      // Refresh
+      renderDesktopIcons();
+      if (STATE.windows[fileId]) {
+        STATE.windows[fileId].el.querySelector('.window-title').textContent = file.name;
+        renderWindowContent(fileId);
+      }
+      // Also refresh parent folder window if this file is inside one
+      const parent = getFileParent(fileId);
+      if (parent && STATE.windows[parent.id]) {
+        renderWindowContent(parent.id);
+      }
+      updateTaskbar();
+    }
+    hideModal();
+  });
+  $modalOverlay.addEventListener('click', (e) => { if (e.target === $modalOverlay) hideModal(); });
+  setTimeout(() => document.getElementById('rename-input')?.select(), 100);
+}
+
+function showWinScreen() {
+  STATE.gameCompleted = true;
+  $modalOverlay.innerHTML = `
+    <div class="modal win-screen">
+      <div class="trophy">🎁</div>
+      <h2>你找到取件码了！</h2>
+      <p>花哞为你准备的礼物正在等你</p>
+      <div class="tracking">SF1234567890CN</div>
+      <p style="margin-top:8px;">顺丰速运 · 花哞 → 那个笨蛋<br>2024年7月26日 寄出<br>快去取件吧，她在等你 🐄</p>
+      <div class="modal-btns" style="margin-top:16px;justify-content:center;">
+        <button class="modal-btn primary close-modal">知道了</button>
+      </div>
+    </div>
+  `;
+  $modalOverlay.classList.add('show');
+  $modalOverlay.querySelector('.close-modal').addEventListener('click', hideModal);
+  $modalOverlay.addEventListener('click', (e) => { if (e.target === $modalOverlay) hideModal(); });
+  updateTaskbar();
+}
+
+function hideModal() {
+  $modalOverlay.classList.remove('show');
+  $modalOverlay.innerHTML = '';
+}
+
+// ============ Global Events ============
+$desktop.addEventListener('contextmenu', (e) => {
+  // Only show desktop context menu if clicking on desktop (not on icons/windows)
+  if (e.target === $desktop || e.target.id === 'desktop-icons') {
+    e.preventDefault();
+    STATE.contextTarget = null;
+    showContextMenu(e.clientX, e.clientY, null);
+  }
+});
+
+// Prevent browser context menu on desktop area
+document.addEventListener('contextmenu', (e) => {
+  if (e.target.closest('#desktop')) {
+    e.preventDefault();
+  }
+});
+
+// Close context menu on scroll
+window.addEventListener('scroll', hideContextMenu);
+
+// ============ Lock Screen ============
+const LOCK_CREDENTIALS = {
+  username: '花哞',
+  password: '20190729'
+};
+
+function updateLockTime() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  document.getElementById('lock-time').textContent = `${h}:${m}`;
+}
+
+function tryUnlock() {
+  const user = document.getElementById('lock-user').value.trim();
+  const pwd = document.getElementById('lock-pwd').value.trim();
+  const err = document.getElementById('lock-error');
+
+  if (user === LOCK_CREDENTIALS.username && pwd === LOCK_CREDENTIALS.password) {
+    document.getElementById('lockscreen').classList.add('unlocked');
+    setTimeout(() => {
+      document.getElementById('lockscreen').style.display = 'none';
+    }, 500);
+  } else {
+    err.classList.add('show');
+    document.getElementById('lock-pwd').value = '';
+    document.getElementById('lock-pwd').focus();
+    // Shake animation
+    const form = document.querySelector('.lock-form');
+    form.style.animation = 'none';
+    form.offsetHeight; // trigger reflow
+    form.style.animation = 'shake .4s ease';
+  }
+}
+
+function initLockScreen() {
+  updateLockTime();
+  setInterval(updateLockTime, 1000);
+
+  document.getElementById('lock-btn').addEventListener('click', tryUnlock);
+  document.getElementById('lock-pwd').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') tryUnlock();
+  });
+  document.getElementById('lock-user').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('lock-pwd').focus();
+  });
+  setTimeout(() => document.getElementById('lock-pwd').focus(), 300);
+}
+
+// ============ Init ============
+function initGame() {
+  renderDesktopIcons();
+  updateTaskbar();
+}
+
+initLockScreen();
+initGame();
+console.log('🖥️ 花哞的桌面已就绪');
+console.log('💡 提示：从"日记.txt"开始你的探索，密码藏在铁盒里的合照背面...');
+</script>
+
+</body>
+</html>
