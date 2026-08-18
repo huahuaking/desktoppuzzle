@@ -391,7 +391,7 @@ body { font-family: var(--font); overflow: hidden; height: 100vh; background: #1
   <div class="lock-form">
     <input type="text" class="lock-input" id="lock-user" placeholder="用户名" autocomplete="off" value="花哞">
     <input type="password" class="lock-input" id="lock-pwd" placeholder="密码" autocomplete="off">
-    <div class="lock-error" id="lock-error">用户名或密码错误</div>
+    <div class="lock-error" id="lock-error">密码错误</div>
     <button class="lock-btn" id="lock-btn">解锁</button>
   </div>
 </div>
@@ -468,6 +468,14 @@ const ICONS = {
     <path d="M20 5 L20 10 M20 30 L20 38 M7 13 L11 16 M29 24 L33 27 M5 22 L10 22 M30 20 L35 20 M8 30 L12 27 M28 15 L32 12" stroke="#b0b0c0" stroke-width="2.5" stroke-linecap="round"/>
     <circle cx="20" cy="20" r="3" fill="#b0b0c0"/>
     <rect x="10" y="37" width="20" height="2" rx="1" fill="#d0d0d8"/>
+  </svg>`,
+  html: (w=40,h=48) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
+    <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#fff" stroke="#C8C8D8" stroke-width="1.2"/>
+    <path d="M28 4 L34 10 L28 10 Z" fill="#E0E0EE"/>
+    <rect x="9" y="16" width="22" height="14" rx="2" fill="#FFF4E8"/>
+    <text x="20" y="27" text-anchor="middle" font-size="9" font-weight="700" fill="#E89C1E" font-family="monospace">&lt;/&gt;</text>
+    <rect x="10" y="34" width="20" height="2.6" rx="1.3" fill="#FFCE54"/>
+    <rect x="10" y="39" width="14" height="2.6" rx="1.3" fill="#FFE0A0"/>
   </svg>`,
   zipBig: (w=64,h=76) => `<svg width="${w}" height="${h}" viewBox="0 0 40 48">
     <path d="M6 4 L28 4 L34 10 L34 44 Q34 45 33 45 L7 45 Q6 45 6 44 Z" fill="#F8F4FF" stroke="#7C5CFF" stroke-width="1.4"/>
@@ -610,7 +618,7 @@ const FILE_SYSTEM = {
       {
         id: 'file-tracking-jpg', name: '最后的秘密.png', type: 'image', icon: 'png',
         realType: 'text',
-        content: '高德位置口令：008217\n神秘代码：0423',
+        content: '高德位置口令：007464\n神秘代码：00956155',
         author: '花哞', modified: '2026-07-26 14:30'
       },
       {
@@ -1035,6 +1043,18 @@ function renderWindowContent(fileId) {
           });
         }, 50);
       }
+      break;
+
+    case 'html':
+      body.classList.remove('grid-view');
+      const notFound = document.createElement('div');
+      notFound.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:300px;gap:12px;';
+      notFound.innerHTML = `
+        <div style="font-size:72px;font-weight:700;color:#d0d0d8;font-family:monospace;">404</div>
+        <div style="font-size:16px;color:#6a6a7e;">Not Found</div>
+        <div style="font-size:12px;color:#9a9ab0;margin-top:8px;">请求的资源在服务器上未找到</div>
+      `;
+      body.appendChild(notFound);
       break;
 
     case 'recycle':
